@@ -1,0 +1,81 @@
+name: Databricks Notebooks Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Data Lake/**"
+
+jobs:
+  deploy-notebooks:
+    runs-on: windows-latest
+    steps:
+      # Step 1:Install Databricks CLI
+      - name: Set up Databricks CLI
+        uses: databricks/setup-cli@main
+        
+      # Step 2: Check if Databricks CLI is installed
+      - name: Check if Databricks CLI is installed
+        run: |
+          if (-not (Get-Command databricks -ErrorAction SilentlyContinue)) {
+            Write-Error "Databricks CLI not found. Please install the Databricks CLI on the runner."
+            exit 1
+          } else {
+            Write-Host "Databricks CLI is already installed."
+          }
+      
+      # Step 3: Authenticate Databricks Workspace
+      - name: Authenticate Databricks Workspace
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:USERPROFILE\.databricks
+          @"
+          [PROD]
+          host = "${{ secrets.PROD_DATABRICKS_HOST }}"
+          client_id = "${{ secrets.DATABRICKS_CLIENT_ID }}"
+          client_secret = "${{ secrets.DATABRICKS_CLIENT_SECRET }}"
+          "@ | Out-File -FilePath "$env:USERPROFILE\.databrickscfg" -Encoding utf8
+          icacls "$env:USERPROFILE\.databrickscfg" /inheritance:r /grant:r "$env:USERNAME`:F"
+          databricks auth profiles
+
+      # Step 4: Download Files from Remote Repository to Local Workspace
+      - name: Download Files from Remote Repository
+        run: |
+          $branch = "PROD"
+          $gitBranch = "main"
+          $repoPath = "$branch/Zachry-Databricks-POC"
+          Write-Host "Current directory: $(Get-Location)"
+          Write-Host "Target folder: $branch, Git branch: $gitBranch"
+          if (Test-Path $repoPath) {
+            Write-Host "Folder $repoPath exists. Navigating and pulling latest changes..."
+            Set-Location $repoPath
+            Write-Host "Current directory: $(Get-Location)"
+            Write-Host "Running git pull for branch $gitBranch..."
+            git pull origin $gitBranch
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to pull repository for branch $gitBranch"
+              exit 1
+            }
+            Set-Location ../..
+          } else {
+            Write-Host "Folder $repoPath does not exist. Creating ${branch} and cloning..."
+            New-Item -ItemType Directory -Path $branch -Force
+            Set-Location $branch
+            Write-Host "Current directory after creating ${branch}: $(Get-Location)"
+            Write-Host "Cloning repository for branch $gitBranch..."
+            git clone --branch $gitBranch https://${{ secrets.REPO_PAT }}@github.com/chandrur44/Zachry-Databricks-POC.git Zachry-Databricks-POC
+            if ($LASTEXITCODE -ne 0) {
+              Write-Error "Failed to clone repository for branch $gitBranch"
+              exit 1
+            }
+            Set-Location ..
+          }
+          Write-Host "Final directory: $(Get-Location)"
+
+      # Step 5: Synchronize Local Folder with Databricks
+      - name: Synchronize Local Folder with Databricks
+        run: |
+          $branch = "PROD"
+          $profile = "PROD"
+          Set-Location "$branch/Zachry-Databricks-POC"
+          databricks --profile $profile sync "./Data Lake/" "/Workspace/Data Lake/"
