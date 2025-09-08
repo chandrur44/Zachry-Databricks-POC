@@ -74,4 +74,4 @@ jobs:
           $branch = "PROD"
           $profile = "PROD"
           Set-Location "$branch/Zachry-Databricks-POC"
-          databricks --profile $profile sync "./Data Lake/" "/Workspace/Data Lake/"
+          databricks --profile $profile sync "./Data Lake/" "/Workspace/Data Lake"
