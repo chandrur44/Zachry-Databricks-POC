@@ -9,11 +9,17 @@ on:
 
 jobs:
   deploy-notebooks:
-    runs-on: windows-latest
+    runs-on: self-hosted
     steps:
-      # Step 1:Install Databricks CLI
-      - name: Set up Databricks CLI
-        uses: databricks/setup-cli@main
+      # Step 1: Check if Databricks CLI is installed
+      - name: Check if Databricks CLI is installed
+        run: |
+          if (-not (Get-Command databricks -ErrorAction SilentlyContinue)) {
+            Write-Error "Databricks CLI not found. Please install the Databricks CLI on the runner."
+            exit 1
+          } else {
+            Write-Host "Databricks CLI is already installed."
+          }
       
       # Step 2: Authenticate Databricks Workspace
       - name: Authenticate Databricks Workspace
