@@ -14,18 +14,8 @@ jobs:
       # Step 1:Install Databricks CLI
       - name: Set up Databricks CLI
         uses: databricks/setup-cli@main
-        
-      # Step 2: Check if Databricks CLI is installed
-      - name: Check if Databricks CLI is installed
-        run: |
-          if (-not (Get-Command databricks -ErrorAction SilentlyContinue)) {
-            Write-Error "Databricks CLI not found. Please install the Databricks CLI on the runner."
-            exit 1
-          } else {
-            Write-Host "Databricks CLI is already installed."
-          }
       
-      # Step 3: Authenticate Databricks Workspace
+      # Step 2: Authenticate Databricks Workspace
       - name: Authenticate Databricks Workspace
         run: |
           New-Item -ItemType Directory -Force -Path $env:USERPROFILE\.databricks
@@ -38,7 +28,7 @@ jobs:
           icacls "$env:USERPROFILE\.databrickscfg" /inheritance:r /grant:r "$env:USERNAME`:F"
           databricks auth profiles
 
-      # Step 4: Download Files from Remote Repository to Local Workspace
+      # Step 3: Download Files from Remote Repository to Local Workspace
       - name: Download Files from Remote Repository
         run: |
           $branch = "PROD"
@@ -72,7 +62,7 @@ jobs:
           }
           Write-Host "Final directory: $(Get-Location)"
 
-      # Step 5: Synchronize Local Folder with Databricks
+      # Step 4: Synchronize Local Folder with Databricks
       - name: Synchronize Local Folder with Databricks
         run: |
           $branch = "PROD"
